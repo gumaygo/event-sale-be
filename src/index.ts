@@ -17,6 +17,9 @@ async function init() {
         app.listen(port, () => {
             console.log(`Server is running on port ${port}`);
         });
+        app.use("/", (req, res) => {
+            res.send("Hello World");
+        });
     } catch (error) {
         console.log(error);
     }
