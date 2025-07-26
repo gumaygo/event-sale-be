@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import * as yup from "yup";
-import UserModel from "../models/user.model.ts";
-import { encrypt } from "../utils/encryption.ts";
-import { generateToken } from "../utils/jwt.ts";
-import { IRequest } from "../middlewares/auth.middleware.ts";
+import UserModel from "../models/user.model";
+import { encrypt } from "../utils/encryption";
+import { generateToken } from "../utils/jwt";
+import { IRequest } from "../middlewares/auth.middleware";
 type TRegister = {
     fullName: string;
     username: string;
@@ -21,7 +21,9 @@ const registerValidateSchema = yup.object().shape({
     fullName: yup.string().required("Full name is required"),
     username: yup.string().required("Username is required"),
     email: yup.string().email("Invalid email").required("Email is required"),
-    password: yup.string().required("Password is required"),
+    password: yup.string().required("Password is required").min(8, "Password must be at least 8 characters").test("password-complexity", "Password must contain at least one uppercase letter, one lowercase letter, and one number", (value) => {
+        return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/.test(value);
+    }),
     confirmPassword: yup.string().required("Confirm password is required").oneOf([yup.ref("password")], "Password and confirm password do not match"),
 });
 
@@ -29,9 +31,7 @@ const registerValidateSchema = yup.object().shape({
 
 export default {
     async register(req: Request, res: Response) {
-
         const { fullName, username, email, password, confirmPassword } = req.body as unknown as TRegister;
-
 
         try {
             await registerValidateSchema.validate({ fullName, username, email, password, confirmPassword })
@@ -55,8 +55,6 @@ export default {
                 error: err.message
             });
         }
-
-
     },
 
     async login(req: Request, res: Response) {
@@ -86,7 +84,7 @@ export default {
 
             const token = generateToken({
                 id: userbyIdentifier._id,
-                role: userbyIdentifier.role
+                role: userbyIdentifier.role,
             });
 
             return res.status(200).json({
@@ -105,16 +103,42 @@ export default {
         }
     },
 
-
     async me(req: IRequest, res: Response) {
         try {
-           const user = req.user;
-           const result = await UserModel.findById(user?.id);
-           return res.status(200).json({
-            message: "User info retrieved successfully",
-            data: result
-           });
+            const user = req.user;
+            const result = await UserModel.findById(user?.id);
+            return res.status(200).json({
+                message: "User info retrieved successfully",
+                data: result
+            });
 
+        } catch (error) {
+            console.log(error);
+            const err = error as unknown as Error
+            return res.status(400).json({
+                message: "Invalid request",
+                data: null,
+                error: err.message
+            });
+        }
+    },
+
+    async verifyEmail(req: Request, res: Response) {
+        try {
+            const { code } = req.query as unknown as { code: string };
+            const user = await UserModel.findOneAndUpdate({ activationCode: code }, { isActive: true } , { new: true });
+            if (!user) {
+                return res.status(400).json({
+                    message: "Invalid activation code",
+                    data: user,
+                    error: "Invalid activation code"
+                });
+            }
+
+            return res.status(200).json({
+                message: "Email verified successfully",
+                data: user
+            });
         } catch (error) {
             console.log(error);
             const err = error as unknown as Error

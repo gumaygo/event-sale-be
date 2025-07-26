@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { getUserFromToken, IUserToken } from "../utils/jwt.ts";
+import { getUserFromToken, IUserToken } from "../utils/jwt";
 
 
 
